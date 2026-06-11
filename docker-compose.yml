@@ -1,14 +1,26 @@
-version: "3.9"
-
 services:
-  app:
-    build: .
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://backend:8000
     ports:
-      - "8501:8501"
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
     volumes:
-      - ./chroma_store:/app/chroma_store
+      - chroma_store:/app/chroma_store
+      - ./data:/app/data:ro
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      CORS_ORIGINS: '["http://localhost:3000"]'
     depends_on:
       ollama:
         condition: service_healthy
@@ -22,10 +34,12 @@ services:
       - ollama_models:/root/.ollama
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 30s
     restart: unless-stopped
 
 volumes:
+  chroma_store:
   ollama_models:
